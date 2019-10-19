@@ -8,6 +8,7 @@
 #include <queue>
 #include <string>
 #include <thread>
+#include <chrono>
 
 namespace Afina {
 namespace Concurrency {
@@ -16,6 +17,7 @@ namespace Concurrency {
  * # Thread pool
  */
 class Executor {
+
     enum class State {
         // Threadpool is fully operational, tasks could be added and get executed
         kRun,
@@ -28,8 +30,10 @@ class Executor {
         kStopped
     };
 
-    Executor(std::string name, int size);
-    ~Executor();
+public:
+    Executor(int l_w = 3, int h_w = 5, int m_q_s = 100,
+             std::chrono::milliseconds i_t = std::chrono::milliseconds(1000));
+//    ~Executor();
 
     /**
      * Signal thread pool to stop, it will stop accepting new jobs and close threads just after each become
@@ -46,6 +50,7 @@ class Executor {
      * That function doesn't wait for function result. Function could always be written in a way to notify caller about
      * execution finished by itself
      */
+//    template <typename F, typename... Types> bool Execute(F &&func, Types... args);
     template <typename F, typename... Types> bool Execute(F &&func, Types... args) {
         // Prepare "task"
         auto exec = std::bind(std::forward<F>(func), std::forward<Types>(args)...);
@@ -56,11 +61,14 @@ class Executor {
         }
 
         // Enqueue new task
-        tasks.push_back(exec);
-        empty_condition.notify_one();
-        return true;
+        if (tasks.size() < max_queue_size) {
+            tasks.push_back(exec);
+            empty_condition.notify_one();
+            return true;
+        } else {
+            return false;
+        }
     }
-
 private:
     // No copy/move/assign allowed
     Executor(const Executor &);            // = delete;
@@ -84,7 +92,7 @@ private:
     std::condition_variable empty_condition;
 
     /**
-     * Vector of actual threads that perorm execution
+     * Vector of actual threads that perform execution
      */
     std::vector<std::thread> threads;
 
@@ -97,7 +105,23 @@ private:
      * Flag to stop bg threads
      */
     State state;
+
+    // минимальное количество потоков, которое должно быть в пуле
+    int low_watermark;
+
+    // максимальное количество потоков в пуле
+    int hight_watermark;
+
+    // максимальное число задач в очереди
+    int max_queue_size;
+
+    // количество миллисекунд, которое каждый из поток ждет задач; по истечении должен быть убит и удален из пула
+    std::chrono::milliseconds idle_time;
+
+    int live_threads;
 };
+
+
 
 } // namespace Concurrency
 } // namespace Afina

@@ -79,18 +79,26 @@ void ServerImpl::Start(uint16_t port, uint32_t n_accept, uint32_t n_workers) {
 // See Server.h
 void ServerImpl::Stop() {
     running.store(false);
-    shutdown(_server_socket, SHUT_RDWR);
+    {
+        std::lock_guard<std::mutex> lg(mutex);
+        for (auto it : client_sockets_set) {
+            shutdown(it, SHUT_RD);
+        }
+        shutdown(_server_socket, SHUT_RDWR);
+    }
 }
 
 // See Server.h
 void ServerImpl::Join() {
-    std::unique_lock<std::mutex> lock(mutex_map);
-    while (!_client_workers.empty()){
+    if (running.load()){
+        ServerImpl::Stop();
+    }
+    std::unique_lock<std::mutex> lock(mutex);
+    while (!client_sockets_set.empty()){
         cond_var.wait(lock);
     }
     assert(_thread.joinable());
     _thread.join();
-    close(_server_socket);
 }
 
 // See Server.h
@@ -104,6 +112,8 @@ void ServerImpl::OnRun() {
     Protocol::Parser parser;
     std::string argument_for_command;
     std::unique_ptr<Execute::Command> command_to_execute;
+    Concurrency::Executor executor(3,5,100,std::chrono::milliseconds(1000));
+
     while (running.load()) {
         _logger->debug("waiting for connection...");
 
@@ -136,21 +146,21 @@ void ServerImpl::OnRun() {
             setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
         }
 
-        // TODO: Start new thread and process data from/to connection
+//         TODO: Start new thread and process data from/to connection
         {
-            std::lock_guard<std::mutex> lg(mutex_map);
-            if (_client_workers.size() < max_workers) {
-                _client_workers.emplace(client_socket, std::thread(&ServerImpl::handle_client, this, client_socket));
-            } else {
-                static const std::string msg = "Limit_of_workers_exceeded!\n";
-                if (send(client_socket, msg.data(), msg.size(), 0) <= 0) {
-                    _logger->error("Failed to write response to client: {}", strerror(errno));
-                }
-//                sleep(0.01); // иначе сокет закроется быстрее, чем мы увидим сообщение
-                close(client_socket);
-            }
+            std::lock_guard<std::mutex> lg(mutex);
+            client_sockets_set.insert(client_socket);
+        }
+        if (!executor.Execute(&ServerImpl::handle_client, this, client_socket)) {
+            close(client_socket);
+            std::lock_guard<std::mutex> lg(mutex);
+            client_sockets_set.erase(client_socket);
         }
     }
+
+    executor.Stop(await);
+    cond_var.notify_all();
+    close(_server_socket);
 }
 
 void ServerImpl::handle_client(int client_socket) {
@@ -241,16 +251,20 @@ void ServerImpl::handle_client(int client_socket) {
     }
 
     // We are done with this connection
+//    {
+//        std::lock_guard<std::mutex> lg(mutex_map);
+//        auto it = _client_workers.find(client_socket);
+//        if (it != _client_workers.end()) {
+//            it->second.detach();
+//            _client_workers.erase(it);
+//        }
+//        if (_client_workers.empty()) {
+//            cond_var.notify_all();
+//        }
+//    }
     {
-        std::lock_guard<std::mutex> lg(mutex_map);
-        auto it = _client_workers.find(client_socket);
-        if (it != _client_workers.end()) {
-            it->second.detach();
-            _client_workers.erase(it);
-        }
-        if (_client_workers.empty()){
-            cond_var.notify_all();
-        }
+        std::lock_guard<std::mutex> lg(mutex);
+        client_sockets_set.erase(client_socket);
     }
     close(client_socket);
 
