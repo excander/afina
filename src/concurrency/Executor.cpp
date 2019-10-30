@@ -37,10 +37,9 @@ void perform(Executor *executor) {
 
 Executor::Executor(int l_w, int h_w, int m_q_s, std::chrono::milliseconds i_t)
     : low_watermark(l_w), hight_watermark(h_w), max_queue_size(m_q_s), idle_time(std::chrono::milliseconds(i_t)),
-      state(State::kRun), live_threads(0) {
+      state(State::kRun) {
     for (int i = 0; i < low_watermark; ++i) {
         threads.emplace_back(std::thread(perform, this));
-        //        live_threads++;
     }
 }
 
@@ -53,19 +52,19 @@ void Executor::Stop(bool await) {
     }
     {
         std::unique_lock<std::mutex> lock(mutex);
-        while (!tasks.empty()){
+        while (!tasks.empty()) {
             empty_condition.wait(lock);
         }
     }
-    if (await){
-        for (auto &it: threads){
-            if (it.joinable()){
+    if (await) {
+        for (auto &it : threads) {
+            if (it.joinable()) {
                 it.join();
             }
         }
     } else {
-        for (auto &it: threads){
-            if (it.joinable()){
+        for (auto &it : threads) {
+            if (it.joinable()) {
                 it.detach();
             }
         }

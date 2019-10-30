@@ -63,6 +63,9 @@ public:
         // Enqueue new task
         if (tasks.size() < max_queue_size) {
             tasks.push_back(exec);
+            if (threads.size() < hight_watermark){
+//                threads.emplace_back(std::thread(perform, this)); !!!!
+            }
             empty_condition.notify_one();
             return true;
         } else {
@@ -117,8 +120,6 @@ private:
 
     // количество миллисекунд, которое каждый из поток ждет задач; по истечении должен быть убит и удален из пула
     std::chrono::milliseconds idle_time;
-
-    int live_threads;
 };
 
 
