@@ -3,6 +3,7 @@
 
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -12,6 +13,9 @@
 
 namespace Afina {
 namespace Concurrency {
+
+class Executor;
+void perform(Executor *executor);
 
 /**
  * # Thread pool
@@ -31,7 +35,9 @@ class Executor {
     };
 
 public:
-    Executor(int l_w = 3, int h_w = 5, int m_q_s = 100,
+    friend void perform(Executor *executor);
+
+    Executor(int l_w = 3, int h_w = 5, int m_q_s = 20,
              std::chrono::milliseconds i_t = std::chrono::milliseconds(1000));
 //    ~Executor();
 
@@ -63,8 +69,10 @@ public:
         // Enqueue new task
         if (tasks.size() < max_queue_size) {
             tasks.push_back(exec);
-            if (threads.size() < hight_watermark){
-//                threads.emplace_back(std::thread(perform, this)); !!!!
+            if (busy_threads_count == threads.size() && threads.size() < hight_watermark){
+                auto new_thread = std::thread(perform, this);
+                threads.insert(std::make_pair(new_thread.get_id(), 0));
+                new_thread.detach();
             }
             empty_condition.notify_one();
             return true;
@@ -80,11 +88,6 @@ private:
     Executor &operator=(Executor &&);      // = delete;
 
     /**
-     * Main function that all pool threads are running. It polls internal task queue and execute tasks
-     */
-    friend void perform(Executor *executor);
-
-    /**
      * Mutex to protect state below from concurrent modification
      */
     std::mutex mutex;
@@ -97,7 +100,7 @@ private:
     /**
      * Vector of actual threads that perform execution
      */
-    std::vector<std::thread> threads;
+    std::map<std::thread::id, int > threads;
 
     /**
      * Task queue
@@ -117,6 +120,8 @@ private:
 
     // максимальное число задач в очереди
     int max_queue_size;
+
+    int busy_threads_count;
 
     // количество миллисекунд, которое каждый из поток ждет задач; по истечении должен быть убит и удален из пула
     std::chrono::milliseconds idle_time;
