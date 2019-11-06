@@ -112,7 +112,7 @@ void ServerImpl::OnRun() {
     Protocol::Parser parser;
     std::string argument_for_command;
     std::unique_ptr<Execute::Command> command_to_execute;
-    Concurrency::Executor executor(3,5,100,std::chrono::milliseconds(1000));
+    Concurrency::Executor executor(2,10,100,std::chrono::milliseconds(1000));
 
     while (running.load()) {
         _logger->debug("waiting for connection...");
@@ -249,6 +249,8 @@ void ServerImpl::handle_client(int client_socket) {
     } catch (std::runtime_error &ex) {
         _logger->error("Failed to process connection on descriptor {}: {}", client_socket, ex.what());
     }
+        //                    for test only
+//        sleep(3);
 
     // We are done with this connection
 //    {
