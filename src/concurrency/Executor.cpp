@@ -10,17 +10,13 @@ void perform(Executor *executor) {
     bool last_task = false;
 
     for (;;) {
-//        {
-//            std::lock_guard<std::mutex> lg(executor->mutex);
-//            std::cout << executor->busy_threads_count << " " << executor->threads.size() << std::endl;
-//        }
         {
             std::unique_lock<std::mutex> lock(executor->mutex);
-            std::cout << executor->busy_threads_count << " " << executor->threads.size() << std::endl;
+//            std::cout << executor->busy_threads_count << " " << executor->threads.size() << std::endl;
             if (executor->tasks.empty()) {
                 if (executor->empty_condition.wait_for(lock, std::chrono::milliseconds(100), [executor] {
                         return (!(executor->tasks.empty()) || (executor->state != Executor::State::kRun));
-                    })) {
+                    })) { // просыпание по условию
                     if (!executor->tasks.empty()) {
                         task = executor->tasks.front();
                         executor->tasks.pop_front();
@@ -29,23 +25,18 @@ void perform(Executor *executor) {
                     }
                     if (executor->state != Executor::State::kRun) {
                         if (executor->threads[std::this_thread::get_id()] == 1) {
-                            last_task = true;
+                            last_task = true; // это - если надо доделать последнюю задачу
                         } else {
                             return;
                         }
                     }
-                } else {
-//                    sleep(1);
+                } else { // просыпание по таймеру
                     if (executor->threads.size() <= executor->low_watermark) {
-//                        std::cout << "continued" << std::endl;
                         continue;
                     } else if (executor->threads.size() > executor->low_watermark) {
-                        std::cout << "erased1"<< std::endl;
-//                        std::lock_guard<std::mutex> lg(executor->mutex);
                         auto it = executor->threads.find(std::this_thread::get_id());
                         if (it != executor->threads.end()) {
                             executor->threads.erase(it);
-                            std::cout << "erased2" << std::endl;
                         }
                         return;
                     }
@@ -59,17 +50,19 @@ void perform(Executor *executor) {
         }
 
         task();
-        sleep(1);
+//        sleep(1); // for tests only
         {
             std::lock_guard<std::mutex> lg(executor->mutex);
             executor->threads[std::this_thread::get_id()] = 0;
             executor->busy_threads_count--;
+            if (executor->busy_threads_count == 0){
+                executor->empty_condition.notify_all();
+            }
         }
-
-        if (last_task){
+        if (last_task) {
             std::lock_guard<std::mutex> lg(executor->mutex);
             auto it = executor->threads.find(std::this_thread::get_id());
-            if (it != executor->threads.end()){
+            if (it != executor->threads.end()) {
                 executor->threads.erase(it);
             }
             return;
@@ -94,29 +87,24 @@ void Executor::Stop(bool await) {
         std::lock_guard<std::mutex> lock(mutex);
         Executor::state = Executor::State::kStopping;
     }
+    empty_condition.notify_all();
     {
         std::unique_lock<std::mutex> lock(mutex);
         while (!tasks.empty()) {
             empty_condition.wait(lock);
         }
     }
-//    if (await) {
-//        for (auto &it : threads) {
-//            if (it.joinable()) {
-//                it.join();
-//            }
-//        }
-//    } else {
-//        for (auto &it : threads) {
-//            if (it.joinable()) {
-//                it.detach();
-//            }
-//        }
-//    }
+    if (await) {
+        std::unique_lock<std::mutex> lock(mutex);
+        while (busy_threads_count) {
+            empty_condition.wait(lock);
+        }
+    }
     {
         std::lock_guard<std::mutex> lock(mutex);
         Executor::state = Executor::State::kStopped;
     }
+    empty_condition.notify_all();
 }
 
 } // namespace Concurrency

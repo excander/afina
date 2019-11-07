@@ -98,7 +98,8 @@ private:
     std::condition_variable empty_condition;
 
     /**
-     * Vector of actual threads that perform execution
+     * Map of actual threads that perform execution
+     * value == 1, у тех процессов, которые на данный момент выполняют задачу
      */
     std::map<std::thread::id, int > threads;
 
