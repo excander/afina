@@ -1,6 +1,7 @@
 #ifndef AFINA_CONCURRENCY_EXECUTOR_H
 #define AFINA_CONCURRENCY_EXECUTOR_H
 
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -9,7 +10,6 @@
 #include <queue>
 #include <string>
 #include <thread>
-#include <chrono>
 
 namespace Afina {
 namespace Concurrency {
@@ -37,9 +37,8 @@ class Executor {
 public:
     friend void perform(Executor *executor);
 
-    Executor(int l_w = 3, int h_w = 5, int m_q_s = 20,
-             std::chrono::milliseconds i_t = std::chrono::milliseconds(1000));
-//    ~Executor();
+    Executor(int l_w = 3, int h_w = 5, int m_q_s = 20, std::chrono::milliseconds i_t = std::chrono::milliseconds(1000));
+    //    ~Executor();
 
     /**
      * Signal thread pool to stop, it will stop accepting new jobs and close threads just after each become
@@ -56,7 +55,7 @@ public:
      * That function doesn't wait for function result. Function could always be written in a way to notify caller about
      * execution finished by itself
      */
-//    template <typename F, typename... Types> bool Execute(F &&func, Types... args);
+    //    template <typename F, typename... Types> bool Execute(F &&func, Types... args);
     template <typename F, typename... Types> bool Execute(F &&func, Types... args) {
         // Prepare "task"
         auto exec = std::bind(std::forward<F>(func), std::forward<Types>(args)...);
@@ -69,7 +68,7 @@ public:
         // Enqueue new task
         if (tasks.size() < max_queue_size) {
             tasks.push_back(exec);
-            if (busy_threads_count == threads.size() && threads.size() < hight_watermark){
+            if (busy_threads_count == threads.size() && threads.size() < hight_watermark) {
                 auto new_thread = std::thread(perform, this);
                 threads.insert(std::make_pair(new_thread.get_id(), 0));
                 new_thread.detach();
@@ -80,6 +79,7 @@ public:
             return false;
         }
     }
+
 private:
     // No copy/move/assign allowed
     Executor(const Executor &);            // = delete;
@@ -101,7 +101,7 @@ private:
      * Map of actual threads that perform execution
      * value == 1, у тех процессов, которые на данный момент выполняют задачу
      */
-    std::map<std::thread::id, int > threads;
+    std::map<std::thread::id, int> threads;
 
     /**
      * Task queue
@@ -127,8 +127,6 @@ private:
     // количество миллисекунд, которое каждый из поток ждет задач; по истечении должен быть убит и удален из пула
     std::chrono::milliseconds idle_time;
 };
-
-
 
 } // namespace Concurrency
 } // namespace Afina

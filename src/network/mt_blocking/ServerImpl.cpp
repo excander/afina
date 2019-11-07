@@ -90,11 +90,11 @@ void ServerImpl::Stop() {
 
 // See Server.h
 void ServerImpl::Join() {
-    if (running.load()){
+    if (running.load()) {
         ServerImpl::Stop();
     }
     std::unique_lock<std::mutex> lock(mutex);
-    while (!client_sockets_set.empty()){
+    while (!client_sockets_set.empty()) {
         cond_var.wait(lock);
     }
     assert(_thread.joinable());
@@ -112,7 +112,7 @@ void ServerImpl::OnRun() {
     Protocol::Parser parser;
     std::string argument_for_command;
     std::unique_ptr<Execute::Command> command_to_execute;
-    Concurrency::Executor executor(2,10,100,std::chrono::milliseconds(1000));
+    Concurrency::Executor executor(2, 10, 100, std::chrono::milliseconds(1000));
 
     while (running.load()) {
         _logger->debug("waiting for connection...");
@@ -146,7 +146,7 @@ void ServerImpl::OnRun() {
             setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
         }
 
-//         TODO: Start new thread and process data from/to connection
+        //         TODO: Start new thread and process data from/to connection
         {
             std::lock_guard<std::mutex> lg(mutex);
             client_sockets_set.insert(client_socket);
@@ -249,21 +249,21 @@ void ServerImpl::handle_client(int client_socket) {
     } catch (std::runtime_error &ex) {
         _logger->error("Failed to process connection on descriptor {}: {}", client_socket, ex.what());
     }
-        //                    for test only
-//        sleep(3);
+    //                    for test only
+    //        sleep(3);
 
     // We are done with this connection
-//    {
-//        std::lock_guard<std::mutex> lg(mutex_map);
-//        auto it = _client_workers.find(client_socket);
-//        if (it != _client_workers.end()) {
-//            it->second.detach();
-//            _client_workers.erase(it);
-//        }
-//        if (_client_workers.empty()) {
-//            cond_var.notify_all();
-//        }
-//    }
+    //    {
+    //        std::lock_guard<std::mutex> lg(mutex_map);
+    //        auto it = _client_workers.find(client_socket);
+    //        if (it != _client_workers.end()) {
+    //            it->second.detach();
+    //            _client_workers.erase(it);
+    //        }
+    //        if (_client_workers.empty()) {
+    //            cond_var.notify_all();
+    //        }
+    //    }
     {
         std::lock_guard<std::mutex> lg(mutex);
         client_sockets_set.erase(client_socket);

@@ -12,7 +12,7 @@ void perform(Executor *executor) {
     for (;;) {
         {
             std::unique_lock<std::mutex> lock(executor->mutex);
-//            std::cout << executor->busy_threads_count << " " << executor->threads.size() << std::endl;
+            //            std::cout << executor->busy_threads_count << " " << executor->threads.size() << std::endl;
             if (executor->tasks.empty()) {
                 if (executor->empty_condition.wait_for(lock, std::chrono::milliseconds(100), [executor] {
                         return (!(executor->tasks.empty()) || (executor->state != Executor::State::kRun));
@@ -50,12 +50,12 @@ void perform(Executor *executor) {
         }
 
         task();
-//        sleep(1); // for tests only
+        //        sleep(1); // for tests only
         {
             std::lock_guard<std::mutex> lg(executor->mutex);
             executor->threads[std::this_thread::get_id()] = 0;
             executor->busy_threads_count--;
-            if (executor->busy_threads_count == 0){
+            if (executor->busy_threads_count == 0) {
                 executor->empty_condition.notify_all();
             }
         }

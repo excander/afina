@@ -5,9 +5,9 @@
 #include <thread>
 
 #include <afina/network/Server.h>
-#include <unordered_set>
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
+#include <unordered_set>
 
 #include <afina/concurrency/Executor.h>
 
@@ -65,7 +65,7 @@ private:
     std::mutex mutex;
     std::unordered_set<int> client_sockets_set;
 
-    //for Executor::Stop;
+    // for Executor::Stop;
     bool await = true;
 };
 
