@@ -30,7 +30,7 @@ class Executor {
         // completed as requested
         kStopping,
 
-        // Threadppol is stopped
+        // Threadpool is stopped
         kStopped
     };
 
@@ -68,9 +68,9 @@ public:
         // Enqueue new task
         if (tasks.size() < max_queue_size) {
             tasks.push_back(exec);
-            if (busy_threads_count == threads.size() && threads.size() < hight_watermark) {
+            if (busy_threads_count == threads_count && threads_count < hight_watermark) {
                 auto new_thread = std::thread(perform, this);
-                threads.insert(std::make_pair(new_thread.get_id(), 0));
+                threads_count++;
                 new_thread.detach();
             }
             empty_condition.notify_one();
@@ -97,11 +97,16 @@ private:
      */
     std::condition_variable empty_condition;
 
+    // CV для ожидания, пока очередь tasks не станет пуста
+    std::condition_variable stop_condition;
+
+    // CV для ожидания, пока все busy_threads не выполнят свои tasks
+    std::condition_variable await_condition;
+
     /**
-     * Map of actual threads that perform execution
-     * value == 1, у тех процессов, которые на данный момент выполняют задачу
+     *  Число работающих потоков;
      */
-    std::map<std::thread::id, int> threads;
+    int threads_count;
 
     /**
      * Task queue
