@@ -37,7 +37,7 @@ class Executor {
 public:
     friend void perform(Executor *executor);
 
-    Executor(int l_w = 3, int h_w = 5, int m_q_s = 20, std::chrono::milliseconds i_t = std::chrono::milliseconds(1000));
+    Executor(int _low_watermark, int _hight_watermark, int _max_queue_size, std::chrono::milliseconds _idle_time);
     //    ~Executor();
 
     /**
