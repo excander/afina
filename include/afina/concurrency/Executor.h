@@ -69,9 +69,8 @@ public:
         if (tasks.size() < max_queue_size) {
             tasks.push_back(exec);
             if (busy_threads_count == threads_count && threads_count < hight_watermark) {
-                auto new_thread = std::thread(perform, this);
+                std::thread(perform, this).detach();
                 threads_count++;
-                new_thread.detach();
             }
             empty_condition.notify_one();
             return true;
@@ -96,9 +95,6 @@ private:
      * Conditional variable to await new data in case of empty queue
      */
     std::condition_variable empty_condition;
-
-    // CV для ожидания, пока очередь tasks не станет пуста
-    std::condition_variable stop_condition;
 
     // CV для ожидания, пока все busy_threads не выполнят свои tasks
     std::condition_variable await_condition;
