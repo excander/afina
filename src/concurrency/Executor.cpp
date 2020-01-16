@@ -29,21 +29,25 @@ void perform(Executor *executor) {
                     }
                     return;
                 }
-            } else { // просыпание по таймеру
-                if (executor->threads_count <= executor->low_watermark) {
-                    continue;
-                } else if (executor->threads_count > executor->low_watermark) {
-                    executor->threads_count--;
-                    if (executor->threads_count == 0 && executor->state != Executor::State::kRun) {
-                        executor->state = Executor::State::kStopped;
-                        executor->await_condition.notify_all();
-                    }
-                    return;
-                }
             }
+            else if (executor->threads_count > executor->low_watermark) {
+                executor->threads_count--;
+                if (executor->threads_count == 0 && executor->state != Executor::State::kRun) {
+                    executor->state = Executor::State::kStopped;
+                    executor->await_condition.notify_all();
+                }
+                return;
+            }
+//          else if (executor->threads_count <= executor->low_watermark) {
+//                    continue;
+//          }
+            else {;}
         }
 
-        task();
+        try {
+            task();
+        }
+        catch(...){ }
 //                        sleep(1); // for tests only
         {
             std::lock_guard<std::mutex> lg(executor->mutex);
@@ -69,7 +73,13 @@ void Executor::Stop(bool await) {
         if (Executor::state != Executor::State::kRun) {
             return;
         }
-        Executor::state = Executor::State::kStopping;
+        else if (threads_count == 0) {
+            Executor::state = Executor::State::kStopped;
+            return;
+        }
+        else {
+            Executor::state = Executor::State::kStopping;
+        }
     }
     empty_condition.notify_all();
 

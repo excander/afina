@@ -7,7 +7,9 @@ namespace Network {
 namespace STnonblock {
 
 // See Connection.h
-void Connection::Start() { std::cout << "Start" << std::endl; }
+void Connection::Start() {
+    std::cout << "Start" << std::endl;
+}
 
 // See Connection.h
 void Connection::OnError() { std::cout << "OnError" << std::endl; }
