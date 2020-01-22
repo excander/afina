@@ -9,6 +9,7 @@ namespace STnonblock {
 
 // See Connection.h
 void Connection::Start() {
+    std::unique_lock<std::mutex> lk(_mutex);
     _event.events = EVENT_READ;
     _is_alive = true;
     _readed_bytes = 0;
@@ -22,6 +23,7 @@ void Connection::Start() {
 
 // See Connection.h
 void Connection::OnError() {
+    std::unique_lock<std::mutex> lk(_mutex);
     _is_alive = false;
     _command_to_execute.reset();
     _argument_for_command.resize(0);
@@ -31,6 +33,7 @@ void Connection::OnError() {
 
 // See Connection.h
 void Connection::OnClose() {
+    std::unique_lock<std::mutex> lk(_mutex);
     if (!_responses.empty()) {
         _event.events = EVENT_WRITE;
         _wanna_be_closed = true;
@@ -45,6 +48,7 @@ void Connection::OnClose() {
 // See Connection.h
 void Connection::DoRead() {
     try {
+        std::unique_lock<std::mutex> lk(_mutex);
         int readed_bytes_current = -1;
         while ((readed_bytes_current =
                     read(_socket, _client_buffer + _readed_bytes, sizeof(_client_buffer) - _readed_bytes)) > 0) {
@@ -118,6 +122,7 @@ void Connection::DoRead() {
 
 // See Connection.h
 void Connection::DoWrite() {
+    std::unique_lock<std::mutex> lk(_mutex);
     assert(!_responses.empty());
     std::size_t resp_size = _responses.size() > 64 ? 64 : _responses.size();
     iovec resp_data[resp_size];

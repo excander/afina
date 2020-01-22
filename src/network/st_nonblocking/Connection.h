@@ -4,6 +4,7 @@
 #include <cstring>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include <sys/epoll.h>
@@ -33,7 +34,10 @@ public:
         _responses.clear();
     }
 
-    inline bool isAlive() const { return _is_alive; }
+    inline bool isAlive() const {
+        std::unique_lock<std::mutex> lk(_mutex);
+        return _is_alive;
+    }
 
     void Start();
 
@@ -64,6 +68,8 @@ private:
     std::unique_ptr<Execute::Command> _command_to_execute;
     std::size_t _arg_remains;
     std::string _argument_for_command;
+
+    mutable std::mutex _mutex;
 };
 
 } // namespace STnonblock
