@@ -23,12 +23,15 @@ namespace MTnonblock {
 
 class Connection {
 public:
-    Connection(int s) : _socket(s) {
+    Connection(int s, std::shared_ptr<Afina::Storage> pStorage) :_socket(s), _pStorage(pStorage) {
         std::memset(&_event, 0, sizeof(struct epoll_event));
         _event.data.ptr = this;
     }
 
-    inline bool isAlive() const { return true; }
+    inline bool isAlive() const {
+        std::unique_lock<std::mutex> lk(_mutex);
+        return _is_alive;
+    }
 
     void Start();
 
