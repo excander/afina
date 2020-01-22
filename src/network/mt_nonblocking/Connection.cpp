@@ -14,7 +14,7 @@ void Connection::Start() {
     _is_alive = true;
     _readed_bytes = 0;
     _command_to_execute = nullptr;
-    _parser = Protocol::Parser{};
+    _parser = Protocol::Parser();
     _argument_for_command = "";
     _responses.clear();
     _arg_remains = 0;
