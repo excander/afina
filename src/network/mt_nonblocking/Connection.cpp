@@ -46,7 +46,8 @@ void Connection::OnClose() {
 }
 
 // See Connection.h
-void Connection::DoRead() { try {
+void Connection::DoRead() {
+    try {
         std::unique_lock<std::mutex> lk(_mutex);
         int readed_bytes_current = -1;
         while ((readed_bytes_current =
@@ -126,10 +127,10 @@ void Connection::DoWrite() {
     std::size_t resp_size = _responses.size() > 64 ? 64 : _responses.size();
     iovec resp_data[resp_size];
     auto iter = _responses.begin();
-    for (auto &&data : resp_data) {
+    for (auto i = 0; i < resp_size; i++) {
         if (iter != _responses.end()) {
-            data.iov_base = (void *)iter->data();
-            data.iov_len = iter->size();
+            resp_data[i].iov_base = (void *)iter->data();
+            resp_data[i].iov_len = iter->size();
             iter++;
         }
     }
@@ -157,7 +158,8 @@ void Connection::DoWrite() {
         _command_to_execute.reset();
         _argument_for_command.resize(0);
         _parser.Reset();
-    } }
+    }
+}
 
 } // namespace MTnonblock
 } // namespace Network
